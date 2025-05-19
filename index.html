@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>BRIEFZ Online</title>
+</head>
+<body>
+  <h1>BRIEFZ - Login/Register</h1>
+  <input id="nama" placeholder="Nama"><br>
+  <input id="email" placeholder="Email"><br>
+  <input id="pass" type="password" placeholder="Password"><br>
+  <button onclick="register()">Register</button>
+  <button onclick="login()">Login</button>
+  <h2>Produk</h2>
+  <div id="produk"></div>
+  <h3>Keranjang</h3>
+  <ul id="keranjang"></ul>
+  <button onclick="checkout()">Checkout</button>
+  <h3>Riwayat Pembelian</h3>
+  <div id="riwayat"></div>
+  <script>
+    let token = '';
+    const keranjang = [];
+
+    async function register() {
+      const r = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: document.getElementById('nama').value,
+          email: document.getElementById('email').value,
+          password: document.getElementById('pass').value
+        })
+      });
+      alert('Registrasi berhasil');
+    }
+
+    async function login() {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('pass').value
+        })
+      });
+      const res = await r.json();
+      token = res.token;
+      alert('Login berhasil');
+      loadProduk();
+      loadRiwayat();
+    }
+
+    async function loadProduk() {
+      const r = await fetch('/api/produk');
+      const data = await r.json();
+      const div = document.getElementById('produk');
+      div.innerHTML = '';
+      data.forEach(p => {
+        div.innerHTML += `<p>${p.nama} - Rp ${p.harga} <button onclick='beli("${p.nama}", ${p.harga})'>Beli</button></p>`;
+      });
+    }
+
+    function beli(nama, harga) {
+      keranjang.push({ nama, harga });
+      document.getElementById('keranjang').innerHTML += `<li>${nama} - Rp ${harga}</li>`;
+    }
+
+    async function checkout() {
+      const total = keranjang.reduce((sum, i) => sum + i.harga, 0);
+      await fetch('/api/transaksi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        },
+        body: JSON.stringify({
+          nama: 'User',
+          email: 'user@mail.com',
+          metode: 'COD',
+          total,
+          keranjang
+        })
+      });
+      alert('Checkout berhasil');
+      loadRiwayat();
+    }
+
+    async function loadRiwayat() {
+      const r = await fetch('/api/transaksi', {
+        headers: { 'Authorization': token }
+      });
+      const data = await r.json();
+      const div = document.getElementById('riwayat');
+      div.innerHTML = data.map(x => `<p>${x.tanggal} - Rp ${x.total}</p>`).join('');
+    }
+  </script>
+</body>
+</html>
