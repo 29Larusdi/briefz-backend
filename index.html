@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>BRIEFZ Online</title>
+</head>
+<body>
+  <h1>BRIEFZ - Login/Register</h1>
+  <input id="nama" placeholder="Nama"><br>
+  <input id="email" placeholder="Email"><br>
+  <input id="pass" type="password" placeholder="Password"><br>
+  <button onclick="register()">Register</button>
+  <button onclick="login()">Login</button>
+
+  <h2>Produk</h2>
+  <div id="produk"></div>
+
+  <h3>Keranjang</h3>
+  <ul id="keranjang"></ul>
+  <button onclick="checkout()">Checkout</button>
+
+  <h3>Riwayat Pembelian</h3>
+  <div id="riwayat"></div>
+
+  <script>
+    let token = '';
+    let currentUser = { nama: '', email: '' };
+    const keranjang = [];
+
+    async function register() {
+      const nama = document.getElementById('nama').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('pass').value;
+
+      if (!nama || !email || !password) {
+        alert('Semua field harus diisi!');
+        return;
+      }
+
+      const r = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama, email, password })
+      });
+
+      if (r.ok) {
+        alert('Registrasi berhasil');
+      } else {
+        alert('Registrasi gagal');
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('pass').value;
+
+      if (!email || !password) {
+        alert('Email dan password wajib diisi');
+        return;
+      }
+
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!r.ok) {
+        alert('Login gagal');
+        return;
+      }
+
+      const res = await r.json();
+      token = res.token;
+      currentUser.email = email;
+      currentUser.nama = document.getElementById('nama').value || 'User';
+      alert('Login berhasil');
+      loadProduk();
+      loadRiwayat();
+    }
+
+    async function loadProduk() {
+      const r = await fetch('/api/produk');
+      const data = await r.json();
+      const div = document.getElementById('produk');
+      div.innerHTML = '';
+      data.forEach(p => {
+        div.innerHTML += `<p>${p.nama} - Rp ${p.harga} <button onclick='beli("${p.nama}", ${p.harga})'>Beli</button></p>`;
+      });
+    }
+
+    function beli(nama, harga) {
+      keranjang.push({ nama, harga });
+      const el = document.createElement('li');
+      el.textContent = `${nama} - Rp ${harga}`;
+      document.getElementById('keranjang').appendChild(el);
+    }
+
+    async function checkout() {
+      if (keranjang.length === 0) {
+        alert('Keranjang kosong');
+        return;
+      }
+
+      const total = keranjang.reduce((sum, i) => sum + i.harga, 0);
+      const res = await fetch('/api/transaksi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        },
+        body: JSON.stringify({
+          nama: currentUser.nama,
+          email: currentUser.email,
+          metode: 'COD',
+          total,
+          keranjang
+        })
+      });
+
+      if (res.ok) {
+        alert('Checkout berhasil');
+        keranjang.length = 0;
+        document.getElementById('keranjang').innerHTML = '';
+        loadRiwayat();
+      } else {
+        alert('Checkout gagal');
+      }
+    }
+
+    async function loadRiwayat() {
+      const r = await fetch('/api/transaksi', {
+        headers: { 'Authorization': token }
+      });
+
+      if (!r.ok) {
+        alert('Gagal memuat riwayat');
+        return;
+      }
+
+      const data = await r.json();
+      const div = document.getElementById('riwayat');
+      div.innerHTML = data.map(x => `<p>${x.tanggal} - Rp ${x.total}</p>`).join('');
+    }
+  </script>
+</body>
+</html>
