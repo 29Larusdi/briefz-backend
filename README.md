@@ -6,6 +6,7 @@ API sederhana untuk manajemen Produk, Transaksi, dan User.
 
 - [Node.js](https://nodejs.org/)
 - [Express.js](https://expressjs.com/)
+- [MongoDB](https://www.mongodb.com/)
 
 ## Cara Menjalankan Proyek
 
